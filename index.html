@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tsuki — Kondaveeti Pandu</title>
+<meta name="description" content="Tsuki — a five-chapter night walk through a Kyoto mountain temple. The portfolio of Kondaveeti Pandu.">
+
+<style>
+/* ============================================================
+   FONTS — self-hosted, relative paths only. No remote fonts.
+   Drop matching .woff2 files into assets/fonts/ (see README).
+   Falls back gracefully to system stacks until you do.
+   ============================================================ */
+@font-face{
+  font-family:'Shippori Mincho';
+  src: url('assets/fonts/ShipporiMincho-Regular.woff2') format('woff2');
+  font-weight:400; font-display:swap;
+}
+@font-face{
+  font-family:'Shippori Mincho';
+  src: url('assets/fonts/ShipporiMincho-Bold.woff2') format('woff2');
+  font-weight:700; font-display:swap;
+}
+@font-face{
+  font-family:'Zen Kaku Gothic New';
+  src: url('assets/fonts/ZenKakuGothicNew-Regular.woff2') format('woff2');
+  font-weight:400; font-display:swap;
+}
+@font-face{
+  font-family:'Zen Kaku Gothic New';
+  src: url('assets/fonts/ZenKakuGothicNew-Medium.woff2') format('woff2');
+  font-weight:500; font-display:swap;
+}
+
+:root{
+  --ink:        #05070A;
+  --charcoal:   #101826;
+  --charcoal-2: #182233;
+  --amber:      #E3A159;
+  --amber-dim:  #B9834A;
+  --bone:       #F3EFE6;
+  --vermilion:  #C4482E;
+  --moon:       #A9C4D9;
+  --line:       rgba(243,239,230,0.14);
+
+  --display: 'Shippori Mincho', 'Noto Serif JP', 'Hiragino Mincho ProN', Georgia, serif;
+  --body:    'Zen Kaku Gothic New', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif;
+  --mono:    'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+html{ scroll-behavior:smooth; background:var(--ink); }
+body{
+  background:var(--ink);
+  color:var(--bone);
+  font-family:var(--body);
+  overflow-x:hidden;
+  cursor: default;
+}
+img,video{ display:block; max-width:100%; }
+a{ color:inherit; }
+::selection{ background:var(--amber); color:var(--ink); }
+
+/* skip link */
+.skip-link{
+  position:fixed; top:-100px; left:16px; z-index:999;
+  background:var(--bone); color:var(--ink); padding:10px 16px;
+  font-family:var(--body); font-size:14px; border-radius:4px;
+  transition: top .2s var(--ease);
+}
+.skip-link:focus{ top:16px; }
+
+/* ============================================================
+   BACKGROUND LAYERS — one per chapter, crossfaded on scroll
+   ============================================================ */
+.bg-stage{
+  position:fixed; inset:0; z-index:0; overflow:hidden; background:var(--ink);
+}
+.bg-layer{
+  position:absolute; inset:0;
+  opacity:0;
+  transition: opacity 1.4s var(--ease), filter 1.4s var(--ease);
+  filter: blur(6px) saturate(0.9);
+}
+.bg-layer.is-active{
+  opacity:1;
+  filter: blur(0px) saturate(1);
+}
+.bg-layer img, .bg-layer video{
+  position:absolute; inset:0;
+  width:100%; height:100%; object-fit:cover;
+  transform: scale(1.06);
+  transition: transform 9s linear;
+}
+.bg-layer.is-active img, .bg-layer.is-active video{
+  transform: scale(1.0);
+}
+.bg-scrim{
+  position:absolute; inset:0;
+  background:
+    linear-gradient(180deg, rgba(5,7,10,0.55) 0%, rgba(5,7,10,0.15) 30%, rgba(5,7,10,0.35) 70%, rgba(5,7,10,0.85) 100%),
+    radial-gradient(120% 90% at 15% 40%, rgba(5,7,10,0.15) 0%, rgba(5,7,10,0.65) 75%);
+}
+.bg-vignette{
+  position:absolute; inset:-2px;
+  box-shadow: inset 0 0 220px 60px rgba(0,0,0,0.75);
+  pointer-events:none;
+}
+/* film grain, cheap + local (no image asset) */
+.bg-grain{
+  position:absolute; inset:0; opacity:0.05; mix-blend-mode:overlay; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ember / atmosphere canvas (lightweight 2D particles — drifting embers & leaves) */
+#atmosphere{ position:fixed; inset:0; z-index:1; pointer-events:none; }
+
+/* ============================================================
+   CUSTOM CURSOR — fine pointers only
+   ============================================================ */
+.cursor-dot{
+  position:fixed; top:0; left:0; width:8px; height:8px; border-radius:50%;
+  background:var(--amber); pointer-events:none; z-index:200;
+  transform: translate(-50%,-50%);
+  transition: transform .15s ease, opacity .3s ease;
+  mix-blend-mode: difference;
+}
+.cursor-ring{
+  position:fixed; top:0; left:0; width:34px; height:34px; border-radius:50%;
+  border:1px solid var(--amber); pointer-events:none; z-index:200;
+  transform: translate(-50%,-50%);
+  transition: transform .35s var(--ease), opacity .3s ease, width .2s ease, height .2s ease;
+  opacity:0.7;
+}
+body.has-fine-pointer{ cursor:none; }
+body.has-fine-pointer a, body.has-fine-pointer button{ cursor:none; }
+@media (pointer:coarse){
+  .cursor-dot, .cursor-ring{ display:none; }
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.site-nav{
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 28px clamp(20px,5vw,56px);
+  font-family:var(--mono); font-size:12px; letter-spacing:0.08em;
+  mix-blend-mode: normal;
+}
+.nav-mark{
+  font-family:var(--display); font-size:20px; letter-spacing:0.04em;
+  text-decoration:none; color:var(--bone);
+}
+.nav-mark span{ color:var(--amber); }
+.nav-links{ display:flex; gap:28px; list-style:none; }
+.nav-links a{
+  text-decoration:none; color:var(--bone); opacity:0.6;
+  padding-bottom:4px; border-bottom:1px solid transparent;
+  transition: opacity .3s var(--ease), border-color .3s var(--ease);
+  text-transform:uppercase;
+}
+.nav-links a:hover, .nav-links a.is-current{ opacity:1; border-color:var(--amber); }
+.nav-toggle{
+  display:none; background:none; border:1px solid var(--line); color:var(--bone);
+  width:40px; height:40px; border-radius:50%; font-family:var(--mono); font-size:11px;
+}
+.mobile-panel{
+  position:fixed; inset:0; z-index:99; background:rgba(5,7,10,0.97);
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  gap:22px; padding: 0 40px;
+  opacity:0; pointer-events:none; transition:opacity .35s var(--ease);
+}
+.mobile-panel.is-open{ opacity:1; pointer-events:auto; }
+.mobile-panel a{
+  font-family:var(--display); font-size:34px; text-decoration:none; color:var(--bone);
+}
+.mobile-panel .m-num{ color:var(--amber); font-family:var(--mono); font-size:13px; margin-right:10px; }
+
+@media (max-width: 760px){
+  .nav-links{ display:none; }
+  .nav-toggle{ display:block; }
+}
+
+/* ============================================================
+   CHAPTER RAIL (progress indicator, desktop)
+   ============================================================ */
+.rail{
+  position:fixed; right:clamp(18px,4vw,44px); top:50%; transform:translateY(-50%);
+  z-index:90; display:flex; flex-direction:column; gap:18px;
+}
+.rail a{
+  display:flex; align-items:center; gap:10px; text-decoration:none;
+  font-family:var(--mono); font-size:10px; color:var(--bone); opacity:0.45;
+  transition: opacity .3s var(--ease);
+}
+.rail a .tick{ width:14px; height:1px; background:var(--bone); transition: all .3s var(--ease); }
+.rail a.is-current{ opacity:1; }
+.rail a.is-current .tick{ width:26px; background:var(--amber); }
+@media (max-width:900px){ .rail{ display:none; } }
+
+/* ============================================================
+   CHAPTER LAYOUT
+   ============================================================ */
+main{ position:relative; z-index:10; }
+.chapter{
+  position:relative;
+  min-height:100vh;
+  display:flex; align-items:flex-end;
+  padding: 140px clamp(20px,6vw,64px) 90px;
+}
+.chapter-inner{ max-width:920px; width:100%; }
+
+.chapter-eyebrow{
+  display:flex; align-items:center; gap:14px;
+  font-family:var(--mono); font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--amber); margin-bottom:18px;
+  opacity:0; transform:translateY(14px);
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+}
+.chapter-eyebrow .num{ color:var(--bone); opacity:0.5; }
+.chapter-eyebrow::after{ content:''; height:1px; width:48px; background:var(--line); }
+
+.chapter-jp{
+  position:absolute; top:120px; right:clamp(20px,6vw,64px);
+  writing-mode: vertical-rl; text-orientation: upright;
+  font-family:var(--display); font-weight:700;
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing:0.18em; color:rgba(243,239,230,0.85);
+  opacity:0; transition: opacity 1s var(--ease) .2s;
+}
+
+.chapter-title{
+  font-family:var(--display); font-weight:700;
+  font-size: clamp(38px, 7vw, 84px);
+  line-height:1.02; letter-spacing:-0.01em;
+  margin-bottom: 26px;
+}
+.chapter-title .word{
+  display:inline-block; opacity:0; transform: translateY(28px);
+  transition: opacity .9s var(--ease), transform .9s var(--ease);
+}
+
+.chapter-body{
+  font-size: clamp(15px,1.6vw,18px); line-height:1.75; color:rgba(243,239,230,0.82);
+  max-width:56ch; margin-bottom:30px;
+  opacity:0; transform:translateY(18px);
+  transition: opacity .9s var(--ease) .15s, transform .9s var(--ease) .15s;
+}
+
+.chapter.is-active .chapter-eyebrow,
+.chapter.is-active .chapter-jp,
+.chapter.is-active .chapter-body{ opacity:1; transform:none; }
+.chapter.is-active .chapter-title .word{ opacity:1; transform:none; }
+
+/* stagger words */
+.chapter-title .word:nth-child(1){ transition-delay: .05s; }
+.chapter-title .word:nth-child(2){ transition-delay: .13s; }
+.chapter-title .word:nth-child(3){ transition-delay: .21s; }
+.chapter-title .word:nth-child(4){ transition-delay: .29s; }
+.chapter-title .word:nth-child(5){ transition-delay: .37s; }
+
+.chapter-meta{
+  display:flex; flex-wrap:wrap; gap: 10px 28px;
+  font-family:var(--mono); font-size:12px; color:var(--moon); opacity:0.85;
+}
+
+/* ---- chapter 01 hero specifics ---- */
+#hajimari{ align-items:center; }
+#hajimari .chapter-inner{ text-align:left; }
+.hero-tagline{
+  font-family:var(--display); font-style:normal; font-size:clamp(17px,2.1vw,22px);
+  color:var(--bone); opacity:0.9; margin-top:6px; max-width:44ch;
+  border-left:2px solid var(--amber); padding-left:16px;
+}
+.scroll-cue{
+  position:absolute; bottom:36px; left:clamp(20px,6vw,64px);
+  display:flex; align-items:center; gap:10px;
+  font-family:var(--mono); font-size:11px; letter-spacing:0.1em; color:var(--bone); opacity:0.55;
+}
+.scroll-cue .line{ width:1px; height:34px; background:linear-gradient(var(--amber), transparent); animation: dropline 2.2s ease infinite; }
+@keyframes dropline{ 0%{ opacity:0.2; } 50%{ opacity:1; } 100%{ opacity:0.2; } }
+
+/* ---- education / craft small lists ---- */
+.detail-list{ list-style:none; display:flex; flex-direction:column; gap:14px; margin-top:8px; }
+.detail-list li{
+  display:flex; justify-content:space-between; gap:20px;
+  border-bottom:1px solid var(--line); padding-bottom:12px;
+  font-size:15px; color:rgba(243,239,230,0.85);
+}
+.detail-list li span:last-child{ color:var(--moon); font-family:var(--mono); font-size:12.5px; text-align:right; }
+
+/* ---- project cards ---- */
+.card-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px; margin-top:6px;
+}
+.proj-card{
+  border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  background: rgba(16,24,38,0.35); backdrop-filter: blur(6px);
+  transition: border-color .3s var(--ease), transform .3s var(--ease);
+  display:flex; flex-direction:column;
+}
+.proj-card:hover{ border-color:var(--amber-dim); transform:translateY(-3px); }
+.proj-thumb{
+  position:relative; aspect-ratio: 16/10; width:100%;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden; border-bottom:1px solid var(--line);
+}
+.proj-thumb::after{
+  content:'add screenshot'; position:absolute; bottom:8px; right:10px;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:0.06em;
+  color:rgba(243,239,230,0.45); text-transform:uppercase;
+}
+.proj-thumb .glyph{
+  font-family:var(--display); font-size:15px; letter-spacing:0.14em;
+  color:rgba(243,239,230,0.9); text-transform:uppercase; z-index:1;
+}
+.proj-thumb.t-anime{ background: radial-gradient(120% 140% at 20% 20%, #C4482E 0%, #2a1310 60%, #05070A 100%); }
+.proj-thumb.t-birthday{ background: radial-gradient(120% 140% at 80% 20%, #E3A159 0%, #3a2712 55%, #05070A 100%); }
+.proj-thumb.t-jjk{ background: radial-gradient(120% 140% at 50% 30%, #4a2f8f 0%, #1a1030 55%, #05070A 100%); }
+.proj-body{ padding:18px 20px 20px; display:flex; flex-direction:column; flex:1; }
+.proj-card .p-num{ font-family:var(--mono); font-size:11px; color:var(--amber); }
+.proj-card h3{ font-family:var(--display); font-size:19px; margin:8px 0 8px; font-weight:700; }
+.proj-card p{ font-size:13.5px; color:rgba(243,239,230,0.7); line-height:1.6; margin-bottom:16px; }
+.gh-btn{
+  margin-top:auto; align-self:flex-start;
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--mono); font-size:12px; text-decoration:none; color:var(--bone);
+  border:1px solid var(--line); padding:9px 14px; border-radius:6px;
+  transition: border-color .3s var(--ease), background .3s var(--ease);
+}
+.gh-btn:hover{ border-color:var(--amber); background:rgba(227,161,89,0.08); }
+.gh-btn svg{ width:14px; height:14px; fill:currentColor; }
+
+/* ---- skills / craft tags ---- */
+.tag-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.tag{
+  font-family:var(--mono); font-size:12px; padding:7px 13px; border-radius:999px;
+  border:1px solid var(--line); color:var(--bone); opacity:0.85;
+}
+
+/* ---- contact / closing ---- */
+.contact-links{ display:flex; flex-wrap:wrap; gap:14px; margin-top:6px; }
+.contact-link{
+  display:inline-flex; align-items:center; gap:10px;
+  font-family:var(--mono); font-size:13.5px; text-decoration:none;
+  border:1px solid var(--line); padding:12px 18px; border-radius:6px; color:var(--bone);
+  transition: border-color .3s var(--ease), background .3s var(--ease);
+}
+.contact-link:hover{ border-color:var(--amber); background:rgba(227,161,89,0.08); }
+.contact-link.primary{ background:var(--amber); color:var(--ink); border-color:transparent; font-weight:600; }
+.contact-link.primary:hover{ background:#EDB479; }
+
+footer.chapter-foot{
+  font-family:var(--mono); font-size:11.5px; color:rgba(243,239,230,0.4);
+  margin-top:52px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+
+/* reduced motion: show everything immediately, kill decorative animation */
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  .bg-layer, .bg-layer img, .bg-layer video,
+  .chapter-eyebrow, .chapter-jp, .chapter-body, .chapter-title .word{
+    transition-duration: .01s !important;
+    animation: none !important;
+  }
+  .scroll-cue .line{ animation:none; }
+  #atmosphere{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<a href="#hajimari" class="skip-link">Skip to content</a>
+
+<!-- ===================== BACKGROUND STAGE ===================== -->
+<div class="bg-stage" aria-hidden="true">
+  <div class="bg-layer" data-bg="hajimari">
+    <video autoplay muted loop playsinline poster="assets/ch1-poster.png">
+      <source src="assets/ch1-hero.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="bg-layer" data-bg="michi"><img src="assets/ch2-path.png" alt=""></div>
+  <div class="bg-layer" data-bg="tsukuri"><img src="assets/ch3-craft-desk.png" alt=""></div>
+  <div class="bg-layer" data-bg="takumi"><img src="assets/ch4-pagoda.png" alt=""></div>
+  <div class="bg-layer" data-bg="asu"><img src="assets/ch5-castle.png" alt=""></div>
+  <div class="bg-scrim"></div>
+  <div class="bg-grain"></div>
+  <div class="bg-vignette"></div>
+</div>
+
+<canvas id="atmosphere" aria-hidden="true"></canvas>
+<div class="cursor-dot" aria-hidden="true"></div>
+<div class="cursor-ring" aria-hidden="true"></div>
+
+<!-- ===================== NAV ===================== -->
+<nav class="site-nav" aria-label="Chapters">
+  <a href="#hajimari" class="nav-mark">TSUKI<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#hajimari" data-nav="hajimari">01 Hajimari</a></li>
+    <li><a href="#michi" data-nav="michi">02 Michi</a></li>
+    <li><a href="#tsukuri" data-nav="tsukuri">03 Tsukuri</a></li>
+    <li><a href="#takumi" data-nav="takumi">04 Takumi</a></li>
+    <li><a href="#asu" data-nav="asu">05 Asu</a></li>
+  </ul>
+  <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="mobilePanel" aria-label="Open menu">☰</button>
+</nav>
+
+<div class="mobile-panel" id="mobilePanel">
+  <a href="#hajimari"><span class="m-num">01</span>Hajimari</a>
+  <a href="#michi"><span class="m-num">02</span>Michi</a>
+  <a href="#tsukuri"><span class="m-num">03</span>Tsukuri</a>
+  <a href="#takumi"><span class="m-num">04</span>Takumi</a>
+  <a href="#asu"><span class="m-num">05</span>Asu</a>
+</div>
+
+<!-- ===================== CHAPTER RAIL ===================== -->
+<div class="rail" aria-hidden="true">
+  <a href="#hajimari" data-rail="hajimari"><span class="tick"></span>01</a>
+  <a href="#michi" data-rail="michi"><span class="tick"></span>02</a>
+  <a href="#tsukuri" data-rail="tsukuri"><span class="tick"></span>03</a>
+  <a href="#takumi" data-rail="takumi"><span class="tick"></span>04</a>
+  <a href="#asu" data-rail="asu"><span class="tick"></span>05</a>
+</div>
+
+<main id="main">
+
+  <!-- ===================== 01 — HAJIMARI ===================== -->
+  <section class="chapter" id="hajimari" data-chapter aria-labelledby="h1-title">
+    <span class="chapter-jp">始まり</span>
+    <div class="chapter-inner">
+      <p class="chapter-eyebrow"><span class="num">01</span> Hajimari — The Beginning</p>
+      <h1 class="chapter-title" id="h1-title">
+        <span class="word">Kondaveeti</span> <span class="word">Pandu</span>
+      </h1>
+      <p class="hero-tagline">"Building AI-powered websites and creative digital experiences."</p>
+    </div>
+    <div class="scroll-cue"><span class="line"></span>Scroll</div>
+  </section>
+
+  <!-- ===================== 02 — MICHI ===================== -->
+  <section class="chapter" id="michi" data-chapter aria-labelledby="h2-title">
+    <span class="chapter-jp">道</span>
+    <div class="chapter-inner">
+      <p class="chapter-eyebrow"><span class="num">02</span> Michi — The Path</p>
+      <h2 class="chapter-title" id="h2-title">
+        <span class="word">About</span> <span class="word">&</span> <span class="word">education</span>
+      </h2>
+      <p class="chapter-body">I am a B.Tech IT student from Vijayawada, Andhra Pradesh. I enjoy building modern websites with AI-assisted tools, exploring web development, and creating creative digital projects. My goal is to become a software engineer and develop impactful technology solutions.</p>
+      <ul class="detail-list">
+        <li><span>B.Tech, Information Technology</span><span>In progress</span></li>
+        <li><span>Vijayawada, Andhra Pradesh</span><span>Home base</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== 03 — TSUKURI ===================== -->
+  <section class="chapter" id="tsukuri" data-chapter aria-labelledby="h3-title">
+    <span class="chapter-jp">創り</span>
+    <div class="chapter-inner">
+      <p class="chapter-eyebrow"><span class="num">03</span> Tsukuri — The Creation</p>
+      <h2 class="chapter-title" id="h3-title">
+        <span class="word">Things</span> <span class="word">I've</span> <span class="word">built</span>
+      </h2>
+      <p class="chapter-body">A working set of projects — replace each thumbnail with a real screenshot and point the GitHub button at your actual repo.</p>
+      <div class="card-grid">
+        <div class="proj-card">
+          <div class="proj-thumb t-anime"><span class="glyph">Anime Store</span></div>
+          <div class="proj-body">
+            <span class="p-num">01</span>
+            <h3>Anime Store Website</h3>
+            <p>An online store concept for anime merchandise — browse, view products, and shop.</p>
+            <a class="gh-btn" href="https://github.com/Pandu32180" target="_blank" rel="noopener">
+              <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-thumb t-birthday"><span class="glyph">Birthday Wish</span></div>
+          <div class="proj-body">
+            <span class="p-num">02</span>
+            <h3>Personal Birthday Wish Website</h3>
+            <p>A personalized interactive birthday page — animation and a custom message.</p>
+            <a class="gh-btn" href="https://github.com/Pandu32180" target="_blank" rel="noopener">
+              <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-thumb t-jjk"><span class="glyph">Domain Expansion</span></div>
+          <div class="proj-body">
+            <span class="p-num">03</span>
+            <h3>JJK Domain Expansion Interactive Website</h3>
+            <p>An interactive fan tribute recreating a Jujutsu Kaisen domain expansion moment.</p>
+            <a class="gh-btn" href="https://github.com/Pandu32180" target="_blank" rel="noopener">
+              <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 04 — TAKUMI ===================== -->
+  <section class="chapter" id="takumi" data-chapter aria-labelledby="h4-title">
+    <span class="chapter-jp">匠</span>
+    <div class="chapter-inner">
+      <p class="chapter-eyebrow"><span class="num">04</span> Takumi — The Craft</p>
+      <h2 class="chapter-title" id="h4-title">
+        <span class="word">Skills</span> <span class="word">&</span> <span class="word">journey</span>
+      </h2>
+      <p class="chapter-body">Tools and languages I work with — update this list as it grows.</p>
+      <div class="tag-row">
+        <span class="tag">HTML / CSS</span>
+        <span class="tag">JavaScript</span>
+        <span class="tag">Python</span>
+        <span class="tag">Git & GitHub</span>
+        <span class="tag">AI-assisted development</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 05 — ASU ===================== -->
+  <section class="chapter" id="asu" data-chapter aria-labelledby="h5-title">
+    <span class="chapter-jp">明日</span>
+    <div class="chapter-inner">
+      <p class="chapter-eyebrow"><span class="num">05</span> Asu — Tomorrow</p>
+      <h2 class="chapter-title" id="h5-title">
+        <span class="word">Let's</span> <span class="word">build</span> <span class="word">tomorrow.</span>
+      </h2>
+      <p class="chapter-eyebrow" style="margin-bottom:6px;"><span class="num">Goal</span> Aspiring Software Engineer</p>
+      <p class="chapter-body">"I aim to build innovative web applications, improve my programming skills, and contribute to impactful software projects." If you'd like to talk, collaborate, or just say hello — reach out below.</p>
+      <div class="contact-links">
+        <a class="contact-link primary" href="https://github.com/Pandu32180" target="_blank" rel="noopener">GitHub ↗</a>
+        <a class="contact-link" href="https://www.instagram.com/god_of_isekai_/" target="_blank" rel="noopener">Instagram ↗</a>
+      </div>
+      <footer class="chapter-foot">
+        <span>Tsuki — 影の道</span>
+        <span>© 2026 Kondaveeti Pandu. All rights reserved.</span>
+      </footer>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const chapters = Array.from(document.querySelectorAll('[data-chapter]'));
+  const bgLayers = Array.from(document.querySelectorAll('.bg-layer'));
+  const navLinks = Array.from(document.querySelectorAll('[data-nav]'));
+  const railLinks = Array.from(document.querySelectorAll('[data-rail]'));
+  const heroVideo = document.querySelector('#hajimari video');
+
+  function setActive(id){
+    chapters.forEach(c => c.classList.toggle('is-active', c.id === id));
+    bgLayers.forEach(l => l.classList.toggle('is-active', l.dataset.bg === id));
+    navLinks.forEach(l => l.classList.toggle('is-current', l.dataset.nav === id));
+    railLinks.forEach(l => l.classList.toggle('is-current', l.dataset.rail === id));
+    if (id === 'hajimari' && heroVideo) { heroVideo.play().catch(()=>{}); }
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+        setActive(entry.target.id);
+      }
+    });
+  }, { threshold: [0.5] });
+  chapters.forEach(c => io.observe(c));
+  setActive('hajimari');
+
+  /* ---- mobile nav ---- */
+  const toggle = document.getElementById('navToggle');
+  const panel = document.getElementById('mobilePanel');
+  toggle.addEventListener('click', () => {
+    const open = panel.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? '✕' : '☰';
+  });
+  panel.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    panel.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.textContent = '☰';
+  }));
+
+  /* ---- custom cursor, fine pointers only ---- */
+  if (window.matchMedia('(pointer:fine)').matches) {
+    document.body.classList.add('has-fine-pointer');
+    const dot = document.querySelector('.cursor-dot');
+    const ring = document.querySelector('.cursor-ring');
+    let rx = 0, ry = 0, mx = 0, my = 0;
+    window.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY;
+      dot.style.left = mx + 'px'; dot.style.top = my + 'px';
+    });
+    function ringLoop(){
+      rx += (mx - rx) * 0.18; ry += (my - ry) * 0.18;
+      ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+      requestAnimationFrame(ringLoop);
+    }
+    ringLoop();
+    document.querySelectorAll('a,button').forEach(el => {
+      el.addEventListener('mouseenter', () => { ring.style.width='54px'; ring.style.height='54px'; });
+      el.addEventListener('mouseleave', () => { ring.style.width='34px'; ring.style.height='34px'; });
+    });
+  }
+
+  /* ---- atmosphere: drifting embers (2D canvas, no library needed) ---- */
+  if (!reduceMotion) {
+    const canvas = document.getElementById('atmosphere');
+    const ctx = canvas.getContext('2d');
+    let w, h, particles = [];
+    function resize(){
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COUNT = window.innerWidth < 700 ? 22 : 42;
+    for (let i = 0; i < COUNT; i++){
+      particles.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        r: Math.random()*1.6 + 0.4,
+        vy: -(Math.random()*0.25 + 0.08),
+        vx: (Math.random()-0.5)*0.15,
+        a: Math.random()*0.5 + 0.15,
+        hue: Math.random() > 0.7 ? 'amber' : 'bone'
+      });
+    }
+    function draw(){
+      ctx.clearRect(0,0,w,h);
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.y < -10) { p.y = h + 10; p.x = Math.random()*w; }
+        if (p.x < -10) p.x = w + 10;
+        if (p.x > w + 10) p.x = -10;
+        ctx.beginPath();
+        ctx.fillStyle = p.hue === 'amber'
+          ? `rgba(227,161,89,${p.a})`
+          : `rgba(243,239,230,${p.a * 0.5})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+})();
+</script>
+</body>
+</html>
